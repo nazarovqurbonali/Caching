@@ -1,0 +1,9 @@
+global using Microsoft.EntityFrameworkCore;
+global using System.Net;
+global using MemoryCache.Data;
+global using MemoryCache.Services;
+global using MemoryCache.Data.Responses;
+global using MemoryCache.Data.Entities;
+global using MemoryCache.Data.DTOs.CategoryDTOs;
+global using Microsoft.AspNetCore.Mvc;
+global using Microsoft.Extensions.Caching.Memory;
