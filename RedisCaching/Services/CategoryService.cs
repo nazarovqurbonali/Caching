@@ -1,29 +1,32 @@
-using RedisCaching.Data;
-using RedisCaching.Data.DTOs.CategoryDTOs;
-using RedisCaching.Data.Entities;
-using RedisCaching.Data.Responses;
-
 namespace RedisCaching.Services;
 
-public class CategoryService(DataContext context) : ICategoryService
+public class CategoryService(DataContext context, IRedisCacheService cache) : ICategoryService
 {
+    private const string CacheKey = "Categories";
+
     public async Task<Response<List<GetCategoryDto>>> GetCategoriesAsync()
     {
         try
         {
-            var categories = await context.Categories.Select(x => new GetCategoryDto()
+            var categories = await cache.GetAsync<List<GetCategoryDto>>(CacheKey);
+            if (categories is null)
             {
-                Name = x.Name,
-                Id = x.Id,
-                Description = x.Description,
-                CreatedAt = x.CreatedAt
-            }).ToListAsync();
+                categories = await context.Categories.Select(x => new GetCategoryDto()
+                {
+                    Name = x.Name,
+                    Id = x.Id,
+                    Description = x.Description,
+                    CreatedAt = x.CreatedAt
+                }).ToListAsync();
+
+                await cache.AddAsync(CacheKey, categories, DateTimeOffset.UtcNow.AddMinutes(1));
+            }
 
             return new Response<List<GetCategoryDto>>(categories);
         }
-        catch (Exception e)
+        catch (Exception ex)
         {
-            return new Response<List<GetCategoryDto>>(HttpStatusCode.InternalServerError, e.Message);
+            return new Response<List<GetCategoryDto>>(HttpStatusCode.InternalServerError, ex.Message);
         }
     }
 
@@ -31,20 +34,27 @@ public class CategoryService(DataContext context) : ICategoryService
     {
         try
         {
-            var existingCategory = await context.Categories.Where(x => x.Id == categoryId).Select(x =>
-                new GetCategoryDto()
-                {
-                    Name = x.Name,
-                    Id = x.Id,
-                    Description = x.Description,
-                    CreatedAt = x.CreatedAt
-                }).FirstOrDefaultAsync();
-            if (existingCategory == null)
+            var categories = await cache.GetAsync<List<GetCategoryDto>>(CacheKey);
+            var category = categories?.FirstOrDefault(x => x.Id == categoryId);
+
+            if (category is null)
             {
-                return new Response<GetCategoryDto>(HttpStatusCode.BadRequest, "Category not found");
+                category = await context.Categories.Where(x => x.Id == categoryId).Select(x =>
+                    new GetCategoryDto()
+                    {
+                        Name = x.Name,
+                        Id = x.Id,
+                        Description = x.Description,
+                        CreatedAt = x.CreatedAt
+                    }).FirstOrDefaultAsync();
+                if (category is null)
+                    return new Response<GetCategoryDto>(HttpStatusCode.BadRequest, "Category not found");
+                await cache.RemoveAsync(CacheKey);
+                await cache.AddAsync(CacheKey, category, DateTimeOffset.UtcNow.AddMinutes(1));
             }
 
-            return new Response<GetCategoryDto>(existingCategory);
+
+            return new Response<GetCategoryDto>(category);
         }
         catch (Exception e)
         {
@@ -72,6 +82,7 @@ public class CategoryService(DataContext context) : ICategoryService
             await context.Categories.AddAsync(newCategory);
             await context.SaveChangesAsync();
 
+            await cache.RemoveAsync(CacheKey);
             return new Response<string>("Successfully created category");
         }
         catch (Exception e)
@@ -85,17 +96,17 @@ public class CategoryService(DataContext context) : ICategoryService
         try
         {
             var existingCategory = await context.Categories.FirstOrDefaultAsync(x => x.Id == category.Id);
-            
-                
+
             if (existingCategory == null)
             {
                 return new Response<string>(HttpStatusCode.BadRequest, $"Not found category with Id={category.Id}");
             }
-            
-            existingCategory.Description=category.Description;
-            existingCategory.Name=category.Name;
+
+            existingCategory.Description = category.Description;
+            existingCategory.Name = category.Name;
             await context.SaveChangesAsync();
 
+            await cache.RemoveAsync(CacheKey);
             return new Response<string>("Successfully updated category");
         }
         catch (Exception e)
@@ -117,6 +128,8 @@ public class CategoryService(DataContext context) : ICategoryService
 
             context.Categories.Remove(existingCategory);
             await context.SaveChangesAsync();
+
+            await cache.RemoveAsync(CacheKey);
             return new Response<bool>(true);
         }
         catch (Exception e)

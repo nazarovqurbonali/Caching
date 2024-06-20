@@ -43,7 +43,6 @@ namespace MemoryCache.Services
 
                 if (category is null )
                 {
-                    cache.Remove(CacheKey);
                     
                      category = await context.Categories.Where(x => x.Id == categoryId).Select(x =>
                         new GetCategoryDto()
@@ -58,6 +57,7 @@ namespace MemoryCache.Services
                         return new Response<GetCategoryDto>(HttpStatusCode.BadRequest, "Category not found");
                     }
                     
+                    cache.Remove(CacheKey);
                     var cacheOptions = new MemoryCacheEntryOptions()
                         .SetSlidingExpiration(TimeSpan.FromSeconds(300))
                         .SetAbsoluteExpiration(TimeSpan.FromSeconds(300))

@@ -16,3 +16,4 @@ global using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 global using RedisCaching.Data;
 global using Microsoft.EntityFrameworkCore.Infrastructure;
 global using RedisCaching.Data;
+global using RedisCaching.Services.RedisCacheService;

@@ -1,4 +1,3 @@
-using RedisCaching.Data.Entities;
 
 namespace RedisCaching.Data;
 

@@ -1,5 +1,3 @@
-using RedisCaching.Data.DTOs.CategoryDTOs;
-using RedisCaching.Data.Responses;
 
 namespace RedisCaching.Services;
 
